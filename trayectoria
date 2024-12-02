@@ -1,0 +1,85 @@
+% Parámetros
+a = 0.5; % Define el tamaño/escala del trébol
+
+theta = linspace(0, 2 * pi, 1000); % Crea vector de 1000 puntos entre 0 y 2π
+
+r = a * cos(2 * theta); % Calcula el radio variable que da forma al trébol
+
+x = r .* cos(theta); % Calcula coordenada x multiplicando r por cos(theta)
+
+y = r .* sin(theta); % Calcula coordenada y multiplicando r por sin(theta)
+
+figure; % Crea nueva ventana de figura
+
+plot(x, y, 'g-', 'LineWidth', 1.5); % Grafica el trébol en verde con grosor 1.5
+
+axis equal; % Hace que los ejes tengan la misma escala
+
+axis([-0.5 0.5 -0.5 0.5]); % Define límites de los ejes
+
+xlabel('x'); % Etiqueta eje x
+ylabel('y'); % Etiqueta eje y
+
+title('Trayectoria en forma de trébol de 4 hojas'); % Título del gráfico
+
+time = 0:0.01:100; % Vector de tiempo de 0 a 100 en pasos de 0.01
+
+orig_time = linspace(0,50,length(x)); % Vector de tiempo original mismo tamaño que x
+
+data = interp1(orig_time, single(x), time, 'linear'); % Interpola coordenada x
+
+tsx= timeseries(data, time); % Crea serie temporal para x
+
+time = 0:0.01:100; % Nuevo vector de tiempo
+orig_time = linspace(0,50,length(y)); % Vector tiempo original para y
+data = interp1(orig_time, y, time, 'linear'); % Interpola coordenada y
+
+tsy= timeseries(data, time); % Crea serie temporal para y
+
+tsx.Data(isnan(tsx.Data) | isinf(tsx.Data)) = 0; % Reemplaza valores NaN/Inf con 0 en x
+tsy.Data(isnan(tsy.Data) | isinf(tsy.Data)) = 0; % Reemplaza valores NaN/Inf con 0 en y
+
+com_port = "COM3"; % Define puerto serial
+baud_rate = 115200; % Define velocidad de comunicación
+
+s = serialport(com_port, baud_rate); % Inicializa puerto serial
+flush(s); % Limpia buffer del puerto
+
+num_samples = 100; % Número de muestras a almacenar
+datos_infra = zeros(num_samples, 1); % Vector para sensor izquierdo
+datos_infra1 = zeros(num_samples, 1); % Vector para sensor derecho 
+errores = zeros(num_samples, 1); % Vector para errores
+correcciones = zeros(num_samples, 1); % Vector para correcciones PID
+
+figure; % Nueva ventana para gráfica en tiempo real
+h1 = plot(datos_infra, 'r', 'DisplayName', 'Sensor Izq'); % Gráfica sensor izquierdo
+
+hold on; % Mantiene gráfico actual para agregar más
+
+h2 = plot(datos_infra1, 'b', 'DisplayName', 'Sensor Der'); % Gráfica sensor derecho
+h3 = plot(errores, 'g', 'DisplayName', 'Error'); % Gráfica errores
+h4 = plot(correcciones, 'k', 'DisplayName', 'Corrección PID'); % Gráfica correcciones
+
+legend; % Agrega leyenda
+title('Datos en Tiempo Real'); % Título
+xlabel('Muestras'); % Etiqueta eje x
+ylabel('Valores'); % Etiqueta eje y
+
+while true % Bucle infinito
+   line = readline(s); % Lee línea de datos del Arduino
+   valores = sscanf(line, '%f %f %f %f'); % Convierte texto a 4 números
+   
+   if length(valores) == 4 % Si recibió 4 valores
+       datos_infra = [datos_infra(2:end); valores(1)]; % Actualiza datos sensor izq
+       datos_infra1 = [datos_infra1(2:end); valores(2)]; % Actualiza datos sensor der
+       errores = [errores(2:end); valores(3)]; % Actualiza errores
+       correcciones = [correcciones(2:end); valores(4)]; % Actualiza correcciones
+
+       set(h1, 'YData', datos_infra); % Actualiza gráfica sensor izq
+       set(h2, 'YData', datos_infra1); % Actualiza gráfica sensor der
+       set(h3, 'YData', errores); % Actualiza gráfica errores
+       set(h4, 'YData', correcciones); % Actualiza gráfica correcciones
+       
+       drawnow; % Fuerza actualización del gráfico
+   end
+end
